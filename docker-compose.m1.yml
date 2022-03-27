@@ -1,0 +1,54 @@
+version: '3'
+
+services:
+
+  #Nginx Service
+  webserver-nginx:
+    image: nginx:1.17.6
+    container_name: webserver-nginx
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./etc/nginx/conf.d/:/etc/nginx/conf.d/
+      - ./app:/usr/share/nginx/html/
+    networks:
+      - app-network
+
+    #PHP Service
+  laravel-app:
+    build:
+      context: ./
+      dockerfile: ./docker/Dockerfile
+    container_name: laravel-app
+    restart: unless-stopped
+    working_dir: /usr/share/nginx/html/
+    volumes:
+      - ./docker/entrypoint.sh:/entrypoint.sh
+      - ./app:/usr/share/nginx/html/
+    entrypoint: [ "sh", "-c", "chmod 777 /entrypoint.sh && /entrypoint.sh && cron && php-fpm" ]
+    networks: 
+      - app-network
+    env_file: ./app/.env
+
+  #MySQL Service
+  db-mysql:
+    image: mysql:5.7.37
+    container_name: db-mysql
+    restart: unless-stopped
+    platform: linux/amd64
+    ports:
+      - 3306:3306
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_DATABASE: laravel
+      MYSQL_ROOT_PASSWORD: 123456
+    networks:
+      - app-network
+    
+
+#Docker Networks
+networks:
+  app-network:
+    driver: bridge
